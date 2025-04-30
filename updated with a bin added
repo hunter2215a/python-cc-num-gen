@@ -1,0 +1,133 @@
+import random
+from randomtimestamp import randomtimestamp
+from datetime import datetime
+
+
+class CreditCard:
+    """
+    Represents an individual credit card with methods to generate details.
+    """
+    # Card type configurations
+    CARD_DATA = {
+        'amex': {'len_num': 15, 'len_cvv': 4, 'default_bin': [34, 37]},
+        'discover': {'len_num': 16, 'len_cvv': 3, 'default_bin': [6011]},
+        'mastercard': {'len_num': 16, 'len_cvv': 3, 'default_bin': [51, 55]},
+        'visa': {'len_num': 16, 'len_cvv': 3, 'default_bin': [4]},
+    }
+
+    def __init__(self, card_type='visa', custom_bins=None):
+        if card_type not in self.CARD_DATA:
+            raise ValueError(f"Invalid card type: {card_type}")
+
+        self.card_type = card_type
+        self.card_length = self.CARD_DATA[card_type]['len_num']
+        self.cvv_length = self.CARD_DATA[card_type]['len_cvv']
+        self.bins = custom_bins if custom_bins else self.CARD_DATA[card_type]['default_bin']
+        self.number = None
+        self.cvv = None
+        self.expiration_date = None
+
+    def generate_expiration_date(self):
+        """
+        Generates a card expiration date between 1 and 3 years from today.
+        """
+        self.expiration_date = randomtimestamp(
+            start_year=datetime.now().year + 1,
+            end_year=datetime.now().year + 3,
+            pattern="%m-%Y",
+            text=True
+        )
+
+    def generate_cvv(self):
+        """
+        Generates a type-specific CVV number.
+        """
+        self.cvv = ''.join(str(random.randint(0, 9)) for _ in range(self.cvv_length))
+
+    def generate_number(self):
+        """
+        Generates a valid credit card number using the Luhn algorithm.
+        """
+        bin_prefix = str(random.choice(self.bins))
+        remaining_length = self.card_length - len(bin_prefix) - 1
+        body = bin_prefix + ''.join(str(random.randint(0, 9)) for _ in range(remaining_length))
+
+        # Calculate Luhn checksum
+        digits = [int(d) for d in body]
+        checksum = 0
+        reverse = digits[::-1]
+        for i, digit in enumerate(reverse):
+            if i % 2 == 0:
+                digit *= 2
+                if digit > 9:
+                    digit -= 9
+            checksum += digit
+
+        # Add the final digit to make it Luhn valid
+        check_digit = (10 - (checksum % 10)) % 10
+        self.number = body + str(check_digit)
+
+    def generate_card(self):
+        """
+        Generates all card details.
+        """
+        self.generate_expiration_date()
+        self.generate_cvv()
+        self.generate_number()
+
+    def to_dict(self):
+        """
+        Returns the card details as a dictionary.
+        """
+        return {
+            'card_type': self.card_type,
+            'number': self.number,
+            'cvv': self.cvv,
+            'expiration_date': self.expiration_date
+        }
+
+
+class CreditCardGenerator:
+    """
+    Generates multiple credit cards of a specified type and BIN range.
+    """
+
+    def __init__(self, card_type='visa', count=1, custom_bins=None):
+        if count <= 0:
+            raise ValueError("Count must be a positive integer.")
+
+        self.card_type = card_type
+        self.count = count
+        self.custom_bins = custom_bins
+        self.cards = []
+
+        if card_type not in CreditCard.CARD_DATA:
+            raise ValueError(f"Invalid card type: {card_type}")
+
+    def generate(self):
+        """
+        Generates the specified number of cards.
+        """
+        for _ in range(self.count):
+            card = CreditCard(card_type=self.card_type, custom_bins=self.custom_bins)
+            card.generate_card()
+            self.cards.append(card.to_dict())
+
+    def print_cards(self):
+        """
+        Prints all generated cards to the console.
+        """
+        for card in self.cards:
+            print(f"Type: {card['card_type']}")
+            print(f"Number: {card['number']}")
+            print(f"CVV: {card['cvv']}")
+            print(f"Expiration Date: {card['expiration_date']}")
+            print('-' * 40)
+
+
+# Example usage
+if __name__ == "__main__":
+    # Generate 2 Visa cards with custom BINs for shopping
+    generator = CreditCardGenerator(card_type='visa', count=2, custom_bins=[4026, 4508, 4844, 4913])
+    generator.generate()
+    generator.print_cards()
